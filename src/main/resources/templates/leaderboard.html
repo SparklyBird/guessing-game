@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboards</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+        --primary-color: #818cf8;
+        --primary-dark: #6366f1;
+        --secondary-color: #fb923c;
+        --background-color: #0f172a;
+        --card-background: #1e293b;
+        --text-color: #f1f5f9;
+        --light-text: #cbd5e1;
+        --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        --border-radius: 12px;
+        --success-color: #4ade80;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background-color: var(--background-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* Decorative circles background */
+    .circles-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        overflow: hidden;
+    }
+
+    .circle {
+        position: absolute;
+        border-radius: 50%;
+        opacity: 0.6;
+        filter: blur(2px);
+    }
+
+    .circle-blue {
+        background: radial-gradient(circle, rgba(129, 140, 248, 0.4) 0%, rgba(99, 102, 241, 0.2) 70%, transparent 100%);
+    }
+
+    .circle-orange {
+        background: radial-gradient(circle, rgba(251, 146, 60, 0.4) 0%, rgba(249, 115, 22, 0.2) 70%, transparent 100%);
+    }
+
+    /* Back button */
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        border: none;
+        border-radius: var(--border-radius);
+        padding: 12px 20px;
+        font-family: 'Poppins', sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        transition: all 0.3s ease;
+        z-index: 100;
+        text-decoration: none;
+    }
+
+    .back-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    }
+
+    .back-btn:active {
+        transform: translateY(0);
+    }
+
+    /* Leaderboard container */
+    .leaderboard-container {
+        background-color: var(--card-background);
+        padding: 40px;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        width: 90%;
+        max-width: 800px;
+        position: relative;
+        overflow: hidden;
+        z-index: 10;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .leaderboard-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    }
+
+    .leaderboard-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .leaderboard-icon {
+        font-size: 3rem;
+        color: var(--secondary-color);
+        margin-bottom: 15px;
+    }
+
+    h1 {
+        color: var(--primary-color);
+        font-size: 2.2rem;
+        font-weight: 700;
+    }
+
+    .leaderboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .leaderboard-table th,
+    .leaderboard-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .leaderboard-table th {
+        color: var(--light-text);
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .leaderboard-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .leaderboard-table tr:hover {
+        background-color: rgba(30, 41, 59, 0.5);
+    }
+
+    .rank {
+        font-weight: 700;
+        color: var(--secondary-color);
+        font-size: 1.1rem;
+        width: 50px;
+    }
+
+    .player-name {
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .stat-value {
+        font-weight: 500;
+        color: var(--light-text);
+    }
+
+    .success-rate {
+        color: var(--success-color);
+        font-weight: 600;
+    }
+
+    .empty-leaderboard {
+        text-align: center;
+        padding: 40px 0;
+        color: var(--light-text);
+    }
+
+    .empty-leaderboard i {
+        font-size: 3rem;
+        color: var(--secondary-color);
+        margin-bottom: 15px;
+    }
+
+    /* Minimum games filter */
+    .filter-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+        gap: 10px;
+    }
+
+    .filter-input {
+        background-color: rgba(30, 41, 59, 0.7);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--border-radius);
+        color: var(--text-color);
+        padding: 10px 15px;
+        font-size: 1rem;
+        width: 100px;
+        text-align: center;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        background-color: rgba(30, 41, 59, 0.9);
+    }
+
+    .filter-button {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        border: none;
+        border-radius: var(--border-radius);
+        padding: 10px 20px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .filter-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 7px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .filter-button:active {
+        transform: translateY(0);
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .leaderboard-container {
+            padding: 30px 20px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+        }
+
+        .leaderboard-table th,
+        .leaderboard-table td {
+            padding: 10px;
+            font-size: 0.9rem;
+        }
+
+        .back-btn {
+            top: 15px;
+            left: 15px;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+        }
+    }
+  </style>
+</head>
+<body>
+<!-- Decorative circles background -->
+<div class="circles-container" id="circlesContainer"></div>
+
+<!-- Back button -->
+<a th:href="@{/}" class="back-btn">
+  <i class="fas fa-arrow-left"></i>
+  Back
+</a>
+
+<div class="leaderboard-container">
+  <div class="leaderboard-header">
+    <div class="leaderboard-icon">
+      <i class="fas fa-trophy"></i>
+    </div>
+    <h1>Leaderboards</h1>
+  </div>
+
+  <div class="filter-container">
+    <input type="number" id="minGames" class="filter-input" placeholder="Min games" min="1" value="1">
+    <button class="filter-button" onclick="filterLeaderboard()">Filter</button>
+  </div>
+
+  <div th:if="${leaderboard == null || leaderboard.isEmpty()}" class="empty-leaderboard">
+    <i class="fas fa-trophy"></i>
+    <p>No players in the leaderboard yet. Be the first!</p>
+  </div>
+
+  <table th:if="${leaderboard != null and not leaderboard.isEmpty()}" class="leaderboard-table" id="leaderboardTable">
+    <thead>
+    <tr>
+      <th>Rank</th>
+      <th>Player</th>
+      <th>Games Played</th>
+      <th>Wins</th>
+      <th>Success Rate</th>
+      <th>Avg. Guesses</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="player, iter : ${leaderboard}">
+      <td class="rank" th:text="${iter.count}">#1</td>
+      <td class="player-name" th:text="${player.playerName}">Player</td>
+      <td class="stat-value" th:text="${player.gamesPlayed}">0</td>
+      <td class="stat-value" th:text="${player.wins}">0</td>
+      <td class="success-rate" th:text="${#numbers.formatPercent(player.successRate, 1, 1)}">0%</td>
+      <td class="stat-value" th:text="${#numbers.formatDecimal(player.totalGuesses / player.gamesPlayed, 1, 1)}">0</td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      // Generate decorative circles or load from localStorage
+      loadOrGenerateCircles();
+  });
+
+  function loadOrGenerateCircles() {
+      const container = document.getElementById('circlesContainer');
+      const storedCircles = localStorage.getItem('decorativeCircles');
+
+      if (storedCircles) {
+          // Load circles from localStorage
+          const circlesData = JSON.parse(storedCircles);
+          circlesData.forEach(circleData => {
+              createCircleFromData(container, circleData);
+          });
+      } else {
+          // Generate new circles and store them
+          generateAndStoreCircles(container);
+      }
+  }
+
+  function createCircleFromData(container, circleData) {
+      const circle = document.createElement('div');
+      circle.className = `circle ${circleData.colorClass}`;
+      circle.style.width = `${circleData.size}px`;
+      circle.style.height = `${circleData.size}px`;
+      circle.style.top = `${circleData.top}%`;
+      circle.style.left = `${circleData.left}%`;
+      circle.style.opacity = circleData.opacity;
+      container.appendChild(circle);
+  }
+
+  function generateAndStoreCircles(container) {
+      const circlesData = [];
+
+      // Define size ranges for different circle types
+      const largeCircles = { min: 250, max: 350, count: 6 };
+      const mediumCircles = { min: 130, max: 200, count: 12 };
+      const smallCircles = { min: 60, max: 120, count: 12 };
+
+      // Generate large circles
+      circlesData.push(...generateCircleGroup(container, largeCircles, 'large'));
+
+      // Generate medium circles
+      circlesData.push(...generateCircleGroup(container, mediumCircles, 'medium'));
+
+      // Generate small circles
+      circlesData.push(...generateCircleGroup(container, smallCircles, 'small'));
+
+      // Store circles data in localStorage
+      localStorage.setItem('decorativeCircles', JSON.stringify(circlesData));
+  }
+
+  function generateCircleGroup(container, sizeConfig, sizeType) {
+      const circlesData = [];
+
+      for (let i = 0; i < sizeConfig.count; i++) {
+          const circle = document.createElement('div');
+          circle.className = 'circle';
+
+          // Determine color based on position (more blue on left, more orange on right)
+          const isLeftSide = Math.random() < 0.5;
+          const colorClass = isLeftSide ? 'circle-blue' : 'circle-orange';
+          circle.classList.add(colorClass);
+
+          // Random size within the specified range
+          const size = Math.floor(Math.random() * (sizeConfig.max - sizeConfig.min + 1)) + sizeConfig.min;
+          circle.style.width = `${size}px`;
+          circle.style.height = `${size}px`;
+
+          // Random position
+          const top = Math.floor(Math.random() * 100);
+          const left = Math.floor(Math.random() * 100);
+
+          // Adjust position to ensure some circles are partially off-screen
+          const adjustedTop = top - 10;
+          const adjustedLeft = left - 10;
+
+          circle.style.top = `${adjustedTop}%`;
+          circle.style.left = `${adjustedLeft}%`;
+
+          // Add some randomization to opacity for visual depth
+          const opacity = (Math.random() * 0.2 + 0.4).toString();
+          circle.style.opacity = opacity;
+
+          container.appendChild(circle);
+
+          // Store circle data
+          circlesData.push({
+              colorClass: colorClass,
+              size: size,
+              top: adjustedTop,
+              left: adjustedLeft,
+              opacity: opacity
+          });
+      }
+
+      return circlesData;
+  }
+
+  function filterLeaderboard() {
+      const minGames = document.getElementById('minGames').value;
+      window.location.href = `/leaderboard?minGames=${minGames}`;
+  }
+</script>
+</body>
+</html>

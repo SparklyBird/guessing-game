@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guessing Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #818cf8;
+            --primary-dark: #6366f1;
+            --secondary-color: #fb923c;
+            --background-color: #0f172a;
+            --card-background: #1e293b;
+            --text-color: #f1f5f9;
+            --light-text: #cbd5e1;
+            --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            --border-radius: 12px;
+            --water-color: rgba(255, 255, 255, 0.9);
+            --ripple-color: rgba(129, 140, 248, 0.5);
+            --google-color: #4285f4;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow: hidden;
+            position: relative;
+        }
+        /* Decorative circles background */
+        .circles-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.6;
+            filter: blur(2px);
+        }
+        .circle-blue {
+            background: radial-gradient(circle, rgba(129, 140, 248, 0.4) 0%, rgba(99, 102, 241, 0.2) 70%, transparent 100%);
+        }
+        .circle-orange {
+            background: radial-gradient(circle, rgba(251, 146, 60, 0.4) 0%, rgba(249, 115, 22, 0.2) 70%, transparent 100%);
+        }
+        /* Leaderboard button */
+        .leaderboard-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--secondary-color), #ea580c);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 12px 20px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
+            transition: all 0.3s ease;
+            z-index: 100;
+            text-decoration: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            animation: fadeInButton 0.8s ease-out 1.8s forwards;
+        }
+        @keyframes fadeInButton {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .leaderboard-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(251, 146, 60, 0.4);
+        }
+        .leaderboard-btn:active {
+            transform: translateY(0);
+        }
+        /* Water droplet effect - ripples only */
+        .droplet-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 1;
+            animation: fadeOutContainer 0.5s ease-in 2.5s forwards;
+        }
+        @keyframes fadeOutContainer {
+            to { opacity: 0; }
+        }
+        .ripple {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: 3px solid var(--ripple-color);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
+            animation: rippleEffect 1.5s ease-out 0s forwards;
+        }
+        @keyframes rippleEffect {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0.9;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(30);
+                opacity: 0;
+            }
+        }
+        .ripple-2 {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: 3px solid var(--ripple-color);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
+            animation: rippleEffect2 1.5s ease-out 0.3s forwards;
+        }
+        @keyframes rippleEffect2 {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0.7;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(35);
+                opacity: 0;
+            }
+        }
+        .ripple-3 {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: 2px solid var(--ripple-color);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
+            animation: rippleEffect3 1.5s ease-out 0.6s forwards;
+        }
+        @keyframes rippleEffect3 {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0.5;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(40);
+                opacity: 0;
+            }
+        }
+        .water-fill {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(129, 140, 248, 0.2), rgba(15, 23, 42, 0));
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: waterFill 1.5s ease-out 1.0s forwards;
+        }
+        @keyframes waterFill {
+            0% {
+                width: 0;
+                height: 0;
+                opacity: 0.8;
+            }
+            70% {
+                width: 1500px;
+                height: 1500px;
+                opacity: 0.4;
+            }
+            100% {
+                width: 2000px;
+                height: 2000px;
+                opacity: 0;
+            }
+        }
+        .container {
+            text-align: center;
+            background-color: var(--card-background);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.8s ease-out 1.8s forwards;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 2.2rem;
+            font-weight: 700;
+        }
+        .game-icon {
+            font-size: 3rem;
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+        }
+        h2 {
+            color: var(--text-color);
+            margin: 25px 0 15px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            position: relative;
+            display: inline-block;
+        }
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 25%;
+            width: 50%;
+            height: 3px;
+            background-color: var(--secondary-color);
+            border-radius: 2px;
+        }
+        ul {
+            list-style-type: none;
+            text-align: left;
+            margin: 20px 0;
+            padding-left: 0;
+        }
+        li {
+            margin-bottom: 15px;
+            padding-left: 30px;
+            position: relative;
+            font-size: 1rem;
+            color: var(--text-color);
+        }
+        li::before {
+            content: '\f00c';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+        }
+        .sub-rule {
+            padding-left: 15px;
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: var(--light-text);
+        }
+        .sub-rule strong {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        .play-button-container {
+            margin-top: 30px;
+        }
+        .play-button {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+        .play-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 15px rgba(129, 140, 248, 0.4);
+        }
+        .play-button:active {
+            transform: translateY(0);
+        }
+        .play-button i {
+            margin-left: 8px;
+        }
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+        }
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .divider span {
+            padding: 0 15px;
+            color: var(--light-text);
+        }
+        .google-button {
+            background: linear-gradient(135deg, var(--google-color), #34a853);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .google-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 15px rgba(66, 133, 244, 0.4);
+        }
+        .google-button:active {
+            transform: translateY(0);
+        }
+        .google-button i {
+            margin-left: 8px;
+        }
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            h2 {
+                font-size: 1.3rem;
+            }
+            .leaderboard-btn {
+                top: 15px;
+                right: 15px;
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- Leaderboard button -->
+<a th:href="@{/leaderboard}" class="leaderboard-btn">
+    <i class="fas fa-trophy"></i>
+    Leaderboards
+</a>
+<!-- Decorative circles background -->
+<div class="circles-container" id="circlesContainer"></div>
+<!-- Water droplet effect elements - ripples only -->
+<div class="droplet-container" id="dropletContainer">
+    <div class="ripple"></div>
+    <div class="ripple-2"></div>
+    <div class="ripple-3"></div>
+    <div class="water-fill"></div>
+</div>
+<div class="container">
+    <div class="game-icon">
+        <i class="fas fa-dice"></i>
+    </div>
+    <h1>Welcome to the Guessing Game!</h1>
+    <h2>Game Rules:</h2>
+    <ul>
+        <li>The program chooses a random secret number with 4 different digits.</li>
+        <li>You have 8 tries to guess the secret number.</li>
+        <li>After each guess, the program will show you:
+            <div class="sub-rule"><strong>M:</strong> Number of matching digits in the wrong position.</div>
+            <div class="sub-rule"><strong>P:</strong> Number of matching digits in the correct position.</div>
+        </li>
+    </ul>
+    <div class="play-button-container">
+        <a th:href="@{/name-entry}" class="play-button">Play with Manual Login <i class="fas fa-keyboard"></i></a>
+
+        <div class="divider">
+            <span>OR</span>
+        </div>
+
+        <a th:href="@{/oauth2/authorization/google}" class="google-button">Play with Google Account <i class="fab fa-google"></i></a>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Generate decorative circles
+        generateCircles();
+        // Remove the droplet container after animation completes
+        const dropletContainer = document.getElementById('dropletContainer');
+        // Set a timeout to remove the droplet container after all animations are done
+        setTimeout(() => {
+            if (dropletContainer) {
+                dropletContainer.style.display = 'none';
+            }
+        }, 3000); // 3 seconds to ensure all animations are complete
+    });
+    function generateCircles() {
+        const container = document.getElementById('circlesContainer');
+        const circleCount = 30; // Total number of circles
+        // Define size ranges for different circle types
+        const largeCircles = { min: 250, max: 350, count: 6 };
+        const mediumCircles = { min: 130, max: 200, count: 12 };
+        const smallCircles = { min: 60, max: 120, count: 12 };
+        // Generate large circles
+        generateCircleGroup(container, largeCircles, 'large');
+        // Generate medium circles
+        generateCircleGroup(container, mediumCircles, 'medium');
+        // Generate small circles
+        generateCircleGroup(container, smallCircles, 'small');
+    }
+    function generateCircleGroup(container, sizeConfig, sizeType) {
+        for (let i = 0; i < sizeConfig.count; i++) {
+            const circle = document.createElement('div');
+            circle.className = 'circle';
+            // Determine color based on position (more blue on left, more orange on right)
+            const isLeftSide = Math.random() < 0.5;
+            if (isLeftSide) {
+                circle.classList.add('circle-blue');
+            } else {
+                circle.classList.add('circle-orange');
+            }
+            // Random size within the specified range
+            const size = Math.floor(Math.random() * (sizeConfig.max - sizeConfig.min + 1)) + sizeConfig.min;
+            circle.style.width = `${size}px`;
+            circle.style.height = `${size}px`;
+            // Random position
+            const top = Math.floor(Math.random() * 100);
+            const left = Math.floor(Math.random() * 100);
+            // Adjust position to ensure some circles are partially off-screen
+            const adjustedTop = top - 10;
+            const adjustedLeft = left - 10;
+            circle.style.top = `${adjustedTop}%`;
+            circle.style.left = `${adjustedLeft}%`;
+            // Add some randomization to opacity for visual depth
+            circle.style.opacity = (Math.random() * 0.2 + 0.4).toString();
+            container.appendChild(circle);
+        }
+    }
+</script>
+</body>
+</html>

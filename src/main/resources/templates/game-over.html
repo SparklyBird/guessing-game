@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Over</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #818cf8;
+            --primary-dark: #6366f1;
+            --secondary-color: #fb923c;
+            --background-color: #0f172a;
+            --card-background: #1e293b;
+            --text-color: #f1f5f9;
+            --light-text: #cbd5e1;
+            --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            --border-radius: 12px;
+            --success-color: #4ade80;
+            --error-color: #ef4444;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow: hidden;
+            position: relative;
+        }
+        /* Decorative circles background */
+        .circles-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.6;
+            filter: blur(2px);
+        }
+        .circle-blue {
+            background: radial-gradient(circle, rgba(129, 140, 248, 0.4) 0%, rgba(99, 102, 241, 0.2) 70%, transparent 100%);
+        }
+        .circle-orange {
+            background: radial-gradient(circle, rgba(251, 146, 60, 0.4) 0%, rgba(249, 115, 22, 0.2) 70%, transparent 100%);
+        }
+        /* Leaderboard button */
+        .leaderboard-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--secondary-color), #ea580c);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 12px 20px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
+            transition: all 0.3s ease;
+            z-index: 100;
+            text-decoration: none;
+        }
+        .leaderboard-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(251, 146, 60, 0.4);
+        }
+        .leaderboard-btn:active {
+            transform: translateY(0);
+        }
+        /* Result container */
+        .result-container {
+            text-align: center;
+            background-color: var(--card-background);
+            padding: 50px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            overflow: hidden;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: fadeIn 0.8s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .result-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+        .result-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            animation: scaleIn 0.5s ease-out;
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        h1.win {
+            color: var(--success-color);
+        }
+        h1.lose {
+            color: var(--error-color);
+        }
+        .player-name {
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            color: var(--secondary-color);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .player-name i {
+            font-size: 1.5rem;
+        }
+        .secret-number {
+            margin: 30px 0;
+            font-size: 1.3rem;
+            color: var(--light-text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .secret-number strong {
+            color: var(--text-color);
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            background-color: rgba(30, 41, 59, 0.5);
+            padding: 8px 15px;
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .game-stats {
+            margin: 30px 0;
+            display: flex;
+            justify-content: space-around;
+            background-color: rgba(30, 41, 59, 0.5);
+            padding: 20px;
+            border-radius: var(--border-radius);
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--light-text);
+        }
+        .action-buttons {
+            margin-top: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 15px rgba(129, 140, 248, 0.4);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--secondary-color), #ea580c);
+            color: white;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 15px rgba(251, 146, 60, 0.4);
+        }
+        .btn-secondary:active {
+            transform: translateY(0);
+        }
+        .btn-small {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            max-width: 200px;
+            margin: 0 auto;
+        }
+        /* Confetti effect for win */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background-color: var(--primary-color);
+            position: absolute;
+            animation: confetti-fall 3s linear forwards;
+            z-index: 1000;
+        }
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        /* Notification for share */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .notification.show {
+            opacity: 1;
+        }
+        /* Responsive design */
+        @media (max-width: 480px) {
+            .result-container {
+                padding: 40px 30px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .result-icon {
+                font-size: 3rem;
+            }
+            .player-name {
+                font-size: 1.5rem;
+            }
+            .leaderboard-btn {
+                top: 15px;
+                right: 15px;
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="circles-container" id="circlesContainer"></div>
+<a th:href="@{/leaderboard}" class="leaderboard-btn">
+    <i class="fas fa-trophy"></i>
+    Leaderboards
+</a>
+<div class="result-container">
+    <div class="result-icon">
+        <i th:if="${message == 'You win!'}" class="fas fa-trophy" style="color: var(--success-color);"></i>
+        <i th:if="${message == 'You lose!'}" class="fas fa-times-circle" style="color: var(--error-color);"></i>
+    </div>
+    <h1 th:if="${message == 'You win!'}" th:text="${message}" class="win">You win!</h1>
+    <h1 th:if="${message == 'You lose!'}" th:text="${message}" class="lose">You lose!</h1>
+
+    <!-- Player name display -->
+    <div class="player-name">
+        <i class="fas fa-user"></i>
+        <span th:text="${gameState.playerName}">SparklyBird</span>
+    </div>
+
+    <div class="secret-number">
+        <i class="fas fa-lock"></i>
+        The secret number was: <strong th:text="${gameState.secretNumber}">7046</strong>
+    </div>
+    <div class="game-stats">
+        <div class="stat">
+            <div class="stat-value" th:text="${gameState.triesLeft > 0 ? (8 - gameState.triesLeft) : 8}">5</div>
+            <div class="stat-label">Guesses Used</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" th:text="${gameState.triesLeft}">3</div>
+            <div class="stat-label">Tries Left</div>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <a th:href="@{/}" class="btn btn-secondary">
+            <i class="fas fa-home"></i>
+            Back to Home
+        </a>
+
+        <button class="btn btn-primary btn-small" onclick="shareResult()">
+            <i class="fas fa-share-alt"></i>
+            Share Result
+        </button>
+    </div>
+</div>
+
+<!-- Notification element for share feedback -->
+<div id="notification" class="notification"></div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Generate decorative circles or load from localStorage
+        loadOrGenerateCircles();
+        // Create confetti effect if player won
+        if (document.querySelector('h1.win')) {
+            createConfetti();
+        }
+    });
+    function loadOrGenerateCircles() {
+        const container = document.getElementById('circlesContainer');
+        const storedCircles = localStorage.getItem('decorativeCircles');
+        if (storedCircles) {
+            // Load circles from localStorage
+            const circlesData = JSON.parse(storedCircles);
+            circlesData.forEach(circleData => {
+                createCircleFromData(container, circleData);
+            });
+        } else {
+            // Generate new circles and store them
+            generateAndStoreCircles(container);
+        }
+    }
+    function createCircleFromData(container, circleData) {
+        const circle = document.createElement('div');
+        circle.className = `circle ${circleData.colorClass}`;
+        circle.style.width = `${circleData.size}px`;
+        circle.style.height = `${circleData.size}px`;
+        circle.style.top = `${circleData.top}%`;
+        circle.style.left = `${circleData.left}%`;
+        circle.style.opacity = circleData.opacity;
+        container.appendChild(circle);
+    }
+    function generateAndStoreCircles(container) {
+        const circlesData = [];
+        // Define size ranges for different circle types
+        const largeCircles = { min: 250, max: 350, count: 6 };
+        const mediumCircles = { min: 130, max: 200, count: 12 };
+        const smallCircles = { min: 60, max: 120, count: 12 };
+        // Generate large circles
+        circlesData.push(...generateCircleGroup(container, largeCircles, 'large'));
+        // Generate medium circles
+        circlesData.push(...generateCircleGroup(container, mediumCircles, 'medium'));
+        // Generate small circles
+        circlesData.push(...generateCircleGroup(container, smallCircles, 'small'));
+        // Store circles data in localStorage
+        localStorage.setItem('decorativeCircles', JSON.stringify(circlesData));
+    }
+    function generateCircleGroup(container, sizeConfig, sizeType) {
+        const circlesData = [];
+        for (let i = 0; i < sizeConfig.count; i++) {
+            const circle = document.createElement('div');
+            circle.className = 'circle';
+            // Determine color based on position (more blue on left, more orange on right)
+            const isLeftSide = Math.random() < 0.5;
+            const colorClass = isLeftSide ? 'circle-blue' : 'circle-orange';
+            circle.classList.add(colorClass);
+            // Random size within the specified range
+            const size = Math.floor(Math.random() * (sizeConfig.max - sizeConfig.min + 1)) + sizeConfig.min;
+            circle.style.width = `${size}px`;
+            circle.style.height = `${size}px`;
+            // Random position
+            const top = Math.floor(Math.random() * 100);
+            const left = Math.floor(Math.random() * 100);
+            // Adjust position to ensure some circles are partially off-screen
+            const adjustedTop = top - 10;
+            const adjustedLeft = left - 10;
+            circle.style.top = `${adjustedTop}%`;
+            circle.style.left = `${adjustedLeft}%`;
+            // Add some randomization to opacity for visual depth
+            const opacity = (Math.random() * 0.2 + 0.4).toString();
+            circle.style.opacity = opacity;
+            container.appendChild(circle);
+            // Store circle data
+            circlesData.push({
+                colorClass: colorClass,
+                size: size,
+                top: adjustedTop,
+                left: adjustedLeft,
+                opacity: opacity
+            });
+        }
+        return circlesData;
+    }
+    function createConfetti() {
+        const colors = ['#818cf8', '#fb923c', '#4ade80', '#60a5fa', '#f472b6', '#a78bfa'];
+        const confettiCount = 100;
+        for (let i = 0; i < confettiCount; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                // Random position at the top
+                const left = Math.random() * 100;
+                confetti.style.left = `${left}%`;
+                confetti.style.top = '-10px';
+                // Random color
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.backgroundColor = color;
+                // Random size
+                const size = Math.random() * 10 + 5;
+                confetti.style.width = `${size}px`;
+                confetti.style.height = `${size}px`;
+                // Random shape
+                const borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                confetti.style.borderRadius = borderRadius;
+                document.body.appendChild(confetti);
+                // Remove confetti after animation
+                setTimeout(() => {
+                    confetti.remove();
+                }, 3000);
+            }, i * 30);
+        }
+    }
+    function shareResult() {
+        const resultText = document.querySelector('h1').textContent;
+        const playerName = document.querySelector('.player-name span').textContent;
+        const secretNumber = document.querySelector('.secret-number strong').textContent;
+        const guessesUsed = document.querySelector('.stat-value').textContent;
+        const shareMessage = `${playerName} just played the Guessing Game! Their result was "${resultText}" The secret number was ${secretNumber}. They used ${guessesUsed} guesses!`;
+
+        if (navigator.share) {
+            // Use Web Share API if available
+            navigator.share({
+                title: 'Guessing Game Result',
+                text: shareMessage
+            }).catch(err => {
+                console.log('Error sharing:', err);
+                showNotification('Unable to share. Result copied to clipboard!');
+                copyToClipboard(shareMessage);
+            });
+        } else {
+            // Fallback: copy to clipboard
+            copyToClipboard(shareMessage);
+            showNotification('Result copied to clipboard!');
+        }
+    }
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).catch(err => {
+            console.error('Failed to copy text: ', err);
+            showNotification('Failed to copy result');
+        });
+    }
+    function showNotification(message) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+
+        // Hide notification after 3 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
+    }
+</script>
+</body>
+</html>

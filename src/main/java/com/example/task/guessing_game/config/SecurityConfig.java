@@ -17,7 +17,9 @@ public class SecurityConfig {
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
                         // Permit access to these URLs without authentication
-                        .requestMatchers("/", "/name-entry", "/leaderboard", "/manual-login", "/game", "/guess", "/game-over", "/css/**", "/js/**", "/h2-console/**").permitAll()
+                        .requestMatchers("/", "/name-entry", "/leaderboard", "/manual-login",
+                                "/start", "/game", "/guess", "/game-over",
+                                "/css/**", "/js/**", "/h2-console/**").permitAll()
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 )
@@ -39,7 +41,7 @@ public class SecurityConfig {
                 )
 
                 // Disable CSRF protection for specific endpoints
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**", "/manual-login", "/guess"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**", "/manual-login", "/guess", "/start"))
 
                 // Configure headers to allow H2 console to be displayed in a frame
                 .headers(headers -> headers

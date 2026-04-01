@@ -182,6 +182,14 @@
         color: var(--text-color);
     }
 
+    .player-name.oauth2 {
+        color: #facc15;
+    }
+
+    .player-name.guest {
+        color: #94a3b8;
+    }
+
     .stat-value {
         font-weight: 500;
         color: var(--light-text);
@@ -317,7 +325,9 @@
     <tbody>
     <tr th:each="player, iter : ${leaderboard}">
       <td class="rank" th:text="${iter.count}">#1</td>
-      <td class="player-name" th:text="${player.playerName}">Player</td>
+      <td class="player-name"
+          th:classappend="${player.playerType == 'OAUTH2'} ? 'oauth2' : 'guest'"
+          th:text="${player.playerName}">Player</td>
       <td class="stat-value" th:text="${player.gamesPlayed}">0</td>
       <td class="stat-value" th:text="${player.wins}">0</td>
       <td class="success-rate" th:text="${#numbers.formatPercent(player.successRate, 1, 1)}">0%</td>

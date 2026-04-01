@@ -9,6 +9,8 @@ import java.util.List;
 
 @Repository
 public interface GameHistoryRepository extends JpaRepository<GameHistoryEntity, Long> {
+    List<GameHistoryEntity> findByPlayerStatsId(Long playerStatsId);
+    void deleteByPlayerStatsId(Long playerStatsId);
     List<GameHistoryEntity> findByPlayerName(String playerName);
     List<GameHistoryEntity> findByGameDateBetween(LocalDateTime startDate, LocalDateTime endDate);
 }

@@ -1,6 +1,7 @@
 package com.example.task.guessing_game.controller;
 
 import com.example.task.guessing_game.model.GameState;
+import com.example.task.guessing_game.model.PlayerStatsEntity;
 import com.example.task.guessing_game.service.GameService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,23 +9,25 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Controller
 public class GameController {
-    private static final String GAME_STATE_SESSION_KEY = "gameState";
+    private static final String GAME_STATE_KEY = "gameState";
+    private static final String OAUTH2_EMAIL_KEY = "oauth2Email";
+    private static final String OAUTH2_SUGGESTED_NAME_KEY = "oauth2SuggestedName";
+
     private final GameService gameService;
 
     @Autowired
     public GameController(GameService gameService) {
         this.gameService = gameService;
-        System.out.println("GameController initialized!");
     }
 
     @GetMapping("/")
@@ -34,50 +37,132 @@ public class GameController {
 
     @GetMapping("/name-entry")
     public String showNameEntryPage() {
-        System.out.println("name-entry endpoint called!");
         return "name-entry";
     }
 
+    /**
+     * Returns whether a GUEST with the given name already exists.
+     * Used for client-side pre-validation if needed.
+     */
+    @GetMapping("/check-name")
+    @ResponseBody
+    public Map<String, Boolean> checkName(@RequestParam String playerName) {
+        return Map.of("taken", gameService.guestNameExists(playerName.trim()));
+    }
+
+    /**
+     * Guest login. If a guest with the same name already exists and force=false,
+     * redirects back to name-entry with a warning. If force=true, overwrites old guest.
+     */
     @PostMapping("/start")
-    public String startGame(@RequestParam String playerName, HttpSession session) {
-        System.out.println("start endpoint called with playerName: " + playerName);
+    public String startGame(@RequestParam String playerName,
+                            @RequestParam(defaultValue = "false") boolean force,
+                            HttpSession session, RedirectAttributes redirectAttributes) {
+        String trimmedName = playerName.trim();
+
+        // Block completely if an OAuth2 user owns this name
+        if (gameService.oauth2NameExists(trimmedName)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "That name is taken by a registered Google account. Please choose a different name.");
+            redirectAttributes.addFlashAttribute("takenName", trimmedName);
+            return "redirect:/name-entry";
+        }
+
+        // Warn if a guest owns this name (but allow force override)
+        if (!force && gameService.guestNameExists(trimmedName)) {
+            redirectAttributes.addFlashAttribute("warning",
+                    "A guest with that name already exists. Choose a different name or continue anyway.");
+            redirectAttributes.addFlashAttribute("takenName", trimmedName);
+            return "redirect:/name-entry";
+        }
+
+        PlayerStatsEntity guest = gameService.createGuestPlayer(trimmedName);
         String secretNumber = gameService.generateSecretNumber();
-        GameState gameState = GameState.newGame(playerName, secretNumber);
-        session.setAttribute(GAME_STATE_SESSION_KEY, gameState);
+        GameState gameState = GameState.newGame(guest.getPlayerName(), guest.getId(), "GUEST", secretNumber);
+        session.setAttribute(GAME_STATE_KEY, gameState);
         return "redirect:/game";
     }
 
-    // New endpoint for manual login (bypasses Spring Security authentication)
-    @PostMapping("/manual-login")
-    public String manualLogin(@RequestParam String playerName, HttpSession session) {
-        System.out.println("manual-login endpoint called with playerName: " + playerName);
-        String secretNumber = gameService.generateSecretNumber();
-        GameState gameState = GameState.newGame(playerName, secretNumber);
-        session.setAttribute(GAME_STATE_SESSION_KEY, gameState);
-        return "redirect:/game";
-    }
-
-    // New endpoint for social login
+    /**
+     * OAuth2 success handler.
+     * Returning users (name already set, not equal to email placeholder) skip /choose-name.
+     * New users go to /choose-name to pick a display name.
+     */
     @GetMapping("/start-social")
     public String startSocialGame(@AuthenticationPrincipal OAuth2User principal, HttpSession session) {
-        // Extract user details from OAuth2User
-        Map<String, Object> attributes = principal.getAttributes();
-        String name = (String) attributes.get("name");
-        String email = (String) attributes.get("email");
+        Map<String, Object> attrs = principal.getAttributes();
+        String email = (String) attrs.get("email");
+        String suggestedName = (String) attrs.getOrDefault("name", email);
 
-        // Use name or email as the player name
-        String playerName = (name != null) ? name : email;
+        PlayerStatsEntity existing = gameService.findOrCreateOAuth2Player(email);
+        if (existing.getPlayerName() != null && !existing.getPlayerName().equals(email)) {
+            // Returning user — start game directly
+            String secretNumber = gameService.generateSecretNumber();
+            GameState gameState = GameState.newGame(existing.getPlayerName(), existing.getId(), "OAUTH2", secretNumber);
+            session.setAttribute(GAME_STATE_KEY, gameState);
+            return "redirect:/game";
+        }
 
-        System.out.println("start-social endpoint called with playerName: " + playerName);
+        // New user — choose a display name
+        session.setAttribute(OAUTH2_EMAIL_KEY, email);
+        session.setAttribute(OAUTH2_SUGGESTED_NAME_KEY, suggestedName);
+        return "redirect:/choose-name";
+    }
+
+    @GetMapping("/choose-name")
+    public String showChooseNamePage(HttpSession session, Model model) {
+        String email = (String) session.getAttribute(OAUTH2_EMAIL_KEY);
+        if (email == null) return "redirect:/";
+        model.addAttribute("suggestedName", session.getAttribute(OAUTH2_SUGGESTED_NAME_KEY));
+        return "choose-name";
+    }
+
+    @PostMapping("/choose-name")
+    public String handleChooseName(@RequestParam String playerName, HttpSession session,
+                                   RedirectAttributes redirectAttributes) {
+        String email = (String) session.getAttribute(OAUTH2_EMAIL_KEY);
+        if (email == null) return "redirect:/";
+
+        String chosenName = playerName.trim();
+
+        Optional<PlayerStatsEntity> oauth2Conflict = gameService.findOAuth2Conflict(chosenName, email);
+        if (oauth2Conflict.isPresent()) {
+            redirectAttributes.addFlashAttribute("error", "That name is already taken. Please choose another.");
+            redirectAttributes.addFlashAttribute("suggestedName", chosenName);
+            return "redirect:/choose-name";
+        }
+
+        gameService.resolveGuestConflict(chosenName);
+
+        PlayerStatsEntity oauthPlayer = gameService.findOrCreateOAuth2Player(email);
+        oauthPlayer = gameService.assignNameToOAuth2Player(oauthPlayer, chosenName);
+
+        session.removeAttribute(OAUTH2_EMAIL_KEY);
+        session.removeAttribute(OAUTH2_SUGGESTED_NAME_KEY);
+
         String secretNumber = gameService.generateSecretNumber();
-        GameState gameState = GameState.newGame(playerName, secretNumber);
-        session.setAttribute(GAME_STATE_SESSION_KEY, gameState);
+        GameState gameState = GameState.newGame(oauthPlayer.getPlayerName(), oauthPlayer.getId(), "OAUTH2", secretNumber);
+        session.setAttribute(GAME_STATE_KEY, gameState);
         return "redirect:/game";
+    }
+
+    /** Restart: look up the existing player record by ID and start a new game (works for both GUEST and OAUTH2). */
+    @PostMapping("/restart")
+    public String restartGame(@RequestParam Long playerStatsId, HttpSession session) {
+        return gameService.getPlayerById(playerStatsId)
+                .map(player -> {
+                    String secretNumber = gameService.generateSecretNumber();
+                    GameState gameState = GameState.newGame(
+                            player.getPlayerName(), player.getId(), player.getPlayerType(), secretNumber);
+                    session.setAttribute(GAME_STATE_KEY, gameState);
+                    return "redirect:/game";
+                })
+                .orElse("redirect:/");
     }
 
     @GetMapping("/game")
     public String showGamePage(HttpSession session, Model model) {
-        GameState gameState = (GameState) session.getAttribute(GAME_STATE_SESSION_KEY);
+        GameState gameState = (GameState) session.getAttribute(GAME_STATE_KEY);
         model.addAttribute("gameState", gameState);
         return "game";
     }
@@ -87,7 +172,7 @@ public class GameController {
                               @RequestParam String digit3, @RequestParam String digit4,
                               HttpSession session, RedirectAttributes redirectAttributes) {
         String guess = digit1 + digit2 + digit3 + digit4;
-        GameState currentState = (GameState) session.getAttribute(GAME_STATE_SESSION_KEY);
+        GameState currentState = (GameState) session.getAttribute(GAME_STATE_KEY);
         GameService.GuessResult result = gameService.checkGuess(currentState.secretNumber(), guess);
 
         int newTriesLeft = currentState.triesLeft() - 1;
@@ -96,12 +181,13 @@ public class GameController {
 
         GameState nextState = new GameState(
                 currentState.playerName(),
+                currentState.playerStatsId(),
+                currentState.playerType(),
                 currentState.secretNumber(),
                 newTriesLeft,
                 newHistory
         );
-
-        session.setAttribute(GAME_STATE_SESSION_KEY, nextState);
+        session.setAttribute(GAME_STATE_KEY, nextState);
 
         if (result.p() == 4) {
             redirectAttributes.addFlashAttribute("message", "You win!");
@@ -117,16 +203,15 @@ public class GameController {
 
     @GetMapping("/game-over")
     public String showGameOverPage(HttpSession session, Model model) {
-        GameState gameState = (GameState) session.getAttribute(GAME_STATE_SESSION_KEY);
+        GameState gameState = (GameState) session.getAttribute(GAME_STATE_KEY);
         model.addAttribute("gameState", gameState);
 
         int guessesMade = 8 - gameState.triesLeft();
         boolean won = gameState.triesLeft() > 0;
-        gameService.recordGameResult(gameState.playerName(), won, guessesMade, gameState.secretNumber());
+        gameService.recordGameResult(
+                gameState.playerStatsId(), gameState.playerName(), won, guessesMade, gameState.secretNumber());
 
-        // Don't invalidate the session here, just remove the game state
-        session.removeAttribute(GAME_STATE_SESSION_KEY);
-
+        session.removeAttribute(GAME_STATE_KEY);
         return "game-over";
     }
 }

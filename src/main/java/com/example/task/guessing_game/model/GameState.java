@@ -1,16 +1,18 @@
 package com.example.task.guessing_game.model;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-// Using a record for a simple, immutable data carrier
 public record GameState(
         String playerName,
+        Long playerStatsId,
+        String playerType,    // "GUEST" or "OAUTH2"
         String secretNumber,
         int triesLeft,
-        List<String> history) {
-    // Factory method to create a new game
-    public static GameState newGame(String playerName, String secretNumber) {
-        return new GameState(playerName, secretNumber, 8, new ArrayList<>());
+        List<String> history) implements Serializable {
+
+    public static GameState newGame(String playerName, Long playerStatsId, String playerType, String secretNumber) {
+        return new GameState(playerName, playerStatsId, playerType, secretNumber, 8, new ArrayList<>());
     }
 }

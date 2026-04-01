@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -v '^\\\\.$')"
+      "Bash(grep -v '^\\\\.$')",
+      "Bash(./mvnw compile:*)",
+      "Bash(./mvnw test:*)"
     ]
   }
 }

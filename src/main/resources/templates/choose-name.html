@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enter Your Name</title>
+  <title>Choose Your Name</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
         --light-text: #cbd5e1;
         --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         --border-radius: 12px;
-        --google-color: #4285f4;
+        --error-color: #f87171;
     }
     * {
         margin: 0;
@@ -156,6 +156,11 @@
         font-size: 2.2rem;
         font-weight: 700;
     }
+    .subtitle {
+        color: var(--light-text);
+        font-size: 0.95rem;
+        margin-bottom: 5px;
+    }
     .game-icon {
         font-size: 3rem;
         color: var(--secondary-color);
@@ -195,6 +200,18 @@
     .container form input::placeholder {
         color: var(--light-text);
     }
+    .error-message {
+        background-color: rgba(248, 113, 113, 0.15);
+        border: 1px solid rgba(248, 113, 113, 0.4);
+        border-radius: var(--border-radius);
+        color: var(--error-color);
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
     .start-button {
         background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
         color: white;
@@ -218,105 +235,6 @@
         transform: translateY(0);
     }
     .start-button i {
-        margin-left: 8px;
-    }
-    .divider {
-        display: flex;
-        align-items: center;
-        margin: 20px 0;
-    }
-    .divider::before,
-    .divider::after {
-        content: '';
-        flex: 1;
-        height: 1px;
-        background-color: rgba(255, 255, 255, 0.1);
-    }
-    .divider span {
-        padding: 0 15px;
-        color: var(--light-text);
-    }
-    .google-button {
-        background: linear-gradient(135deg, var(--google-color), #34a853);
-        color: white;
-        padding: 15px 30px;
-        border: none;
-        border-radius: var(--border-radius);
-        cursor: pointer;
-        font-size: 1.1rem;
-        font-weight: 600;
-        width: 100%;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-        text-decoration: none;
-        display: inline-block;
-    }
-    .google-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 7px 15px rgba(66, 133, 244, 0.4);
-    }
-    .google-button:active {
-        transform: translateY(0);
-    }
-    .google-button i {
-        margin-left: 8px;
-    }
-    .error-message {
-        background-color: rgba(239, 68, 68, 0.12);
-        border: 1px solid rgba(239, 68, 68, 0.4);
-        border-radius: var(--border-radius);
-        color: #f87171;
-        padding: 12px 16px;
-        margin-bottom: 16px;
-        font-size: 0.95rem;
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        text-align: left;
-    }
-    .error-message i {
-        margin-top: 2px;
-        flex-shrink: 0;
-    }
-    .warning-message {
-        background-color: rgba(251, 146, 60, 0.12);
-        border: 1px solid rgba(251, 146, 60, 0.4);
-        border-radius: var(--border-radius);
-        color: var(--secondary-color);
-        padding: 12px 16px;
-        margin-bottom: 16px;
-        font-size: 0.95rem;
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        text-align: left;
-    }
-    .warning-message i {
-        margin-top: 2px;
-        flex-shrink: 0;
-    }
-    .continue-button {
-        background: linear-gradient(135deg, var(--secondary-color), #ea580c);
-        color: white;
-        padding: 13px 20px;
-        border: none;
-        border-radius: var(--border-radius);
-        cursor: pointer;
-        font-size: 1rem;
-        font-weight: 600;
-        width: 100%;
-        transition: all 0.3s ease;
-        margin-bottom: 12px;
-    }
-    .continue-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 7px 15px rgba(251, 146, 60, 0.4);
-    }
-    .continue-button:active {
-        transform: translateY(0);
-    }
-    .continue-button i {
         margin-left: 8px;
     }
     @media (max-width: 480px) {
@@ -353,99 +271,60 @@
 <div class="circles-container" id="circlesContainer"></div>
 <div class="container">
   <div class="game-icon">
-    <i class="fas fa-user"></i>
+    <i class="fab fa-google"></i>
   </div>
-  <h1>Enter Your Name</h1>
+  <h1>Choose Your Name</h1>
+  <p class="subtitle">You can keep your Google display name or pick a new one.</p>
+
   <div class="form-container">
-
-    <!-- Error: name owned by an OAuth2 account (cannot be overridden) -->
     <div th:if="${error}" class="error-message">
-      <i class="fas fa-ban"></i>
-      <span th:text="${error}"></span>
+      <i class="fas fa-exclamation-circle"></i>
+      <span th:text="${error}">Error message</span>
     </div>
 
-    <!-- Warning: guest name already taken -->
-    <div th:if="${warning}" class="warning-message">
-      <i class="fas fa-exclamation-triangle"></i>
-      <span th:text="${warning}"></span>
-    </div>
-
-    <!-- Continue Anyway: force-overwrites the existing guest record -->
-    <form th:if="${warning}" th:action="@{/start}" method="post">
-      <input type="hidden" name="playerName" th:value="${takenName}">
-      <input type="hidden" name="force" value="true">
-      <button type="submit" class="continue-button">
-        Continue Anyway <i class="fas fa-forward"></i>
-      </button>
-    </form>
-
-    <form th:action="@{/start}" method="post">
-      <label for="playerName">Player Name:</label>
+    <form th:action="@{/choose-name}" method="post">
+      <label for="playerName">Display Name:</label>
       <div class="input-group">
         <input type="text" id="playerName" name="playerName"
-               th:value="${takenName}"
-               placeholder="Your name" required>
+               th:value="${suggestedName}"
+               placeholder="Your display name" required maxlength="32">
       </div>
-      <button type="submit" class="start-button">Start Game <i class="fas fa-arrow-right"></i></button>
+      <button type="submit" class="start-button">
+        Start Game <i class="fas fa-arrow-right"></i>
+      </button>
     </form>
-
-    <div class="divider">
-      <span>OR</span>
-    </div>
-
-    <a th:href="@{/oauth2/authorization/google}" class="google-button">
-      Login with Google <i class="fab fa-google"></i>
-    </a>
   </div>
 </div>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-      // Generate decorative circles
       generateCircles();
-      // Auto-focus on name input
       const nameInput = document.getElementById('playerName');
       if (nameInput) {
           nameInput.focus();
+          // Place cursor at end of pre-filled value
+          const len = nameInput.value.length;
+          nameInput.setSelectionRange(len, len);
       }
   });
   function generateCircles() {
       const container = document.getElementById('circlesContainer');
-      const circleCount = 30; // Total number of circles
-      // Define size ranges for different circle types
       const largeCircles = { min: 250, max: 350, count: 6 };
       const mediumCircles = { min: 130, max: 200, count: 12 };
       const smallCircles = { min: 60, max: 120, count: 12 };
-      // Generate large circles
-      generateCircleGroup(container, largeCircles, 'large');
-      // Generate medium circles
-      generateCircleGroup(container, mediumCircles, 'medium');
-      // Generate small circles
-      generateCircleGroup(container, smallCircles, 'small');
+      generateCircleGroup(container, largeCircles);
+      generateCircleGroup(container, mediumCircles);
+      generateCircleGroup(container, smallCircles);
   }
-  function generateCircleGroup(container, sizeConfig, sizeType) {
+  function generateCircleGroup(container, sizeConfig) {
       for (let i = 0; i < sizeConfig.count; i++) {
           const circle = document.createElement('div');
           circle.className = 'circle';
-          // Determine color based on position (more blue on left, more orange on right)
-          const isLeftSide = Math.random() < 0.5;
-          if (isLeftSide) {
-              circle.classList.add('circle-blue');
-          } else {
-              circle.classList.add('circle-orange');
-          }
-          // Random size within the specified range
+          circle.classList.add(Math.random() < 0.5 ? 'circle-blue' : 'circle-orange');
           const size = Math.floor(Math.random() * (sizeConfig.max - sizeConfig.min + 1)) + sizeConfig.min;
           circle.style.width = `${size}px`;
           circle.style.height = `${size}px`;
-          // Random position
-          const top = Math.floor(Math.random() * 100);
-          const left = Math.floor(Math.random() * 100);
-          // Adjust position to ensure some circles are partially off-screen
-          const adjustedTop = top - 10;
-          const adjustedLeft = left - 10;
-          circle.style.top = `${adjustedTop}%`;
-          circle.style.left = `${adjustedLeft}%`;
-          // Add some randomization to opacity for visual depth
+          circle.style.top = `${Math.floor(Math.random() * 100) - 10}%`;
+          circle.style.left = `${Math.floor(Math.random() * 100) - 10}%`;
           circle.style.opacity = (Math.random() * 0.2 + 0.4).toString();
           container.appendChild(circle);
       }

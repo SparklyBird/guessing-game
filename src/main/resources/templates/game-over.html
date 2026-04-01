@@ -339,9 +339,18 @@
     </div>
 
     <div class="action-buttons">
-        <a th:href="@{/}" class="btn btn-secondary">
-            <i class="fas fa-home"></i>
-            Back to Home
+        <!-- Play Again: reuses existing player record for both GUEST and OAUTH2 -->
+        <form th:action="@{/restart}" method="post" style="width:100%">
+            <input type="hidden" name="playerStatsId" th:value="${gameState.playerStatsId}">
+            <button type="submit" class="btn btn-primary" style="width:100%">
+                <i class="fas fa-redo"></i>
+                Play Again
+            </button>
+        </form>
+
+        <a th:href="@{/leaderboard}" class="btn btn-secondary">
+            <i class="fas fa-trophy"></i>
+            Go to Leaderboard
         </a>
 
         <button class="btn btn-primary btn-small" onclick="shareResult()">

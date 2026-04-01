@@ -10,12 +10,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Core service for the Guessing Game.
+ * Handles game logic (secret number generation, guess checking),
+ * player management (guest and OAuth2 flows, name conflict resolution),
+ * game result recording, and leaderboard retrieval.
+ */
 @Service
 public class GameService {
     private final PlayerStatsRepository playerStatsRepository;
@@ -27,7 +30,6 @@ public class GameService {
         this.gameHistoryRepository = gameHistoryRepository;
     }
 
-    // Helper class to hold the result of a guess
     public record GuessResult(int m, int p) {
         @Override
         public String toString() {
@@ -35,118 +37,150 @@ public class GameService {
         }
     }
 
-    // Returns 4-digit secret number
     public String generateSecretNumber() {
-        // Create a list using 0-9 digits
         List<Integer> digits = new ArrayList<>();
-        for (int i = 0; i <= 9; i++) {
-            digits.add(i);
-        }
-        // Shuffle the list to randomize the order of the digits
+        for (int i = 0; i <= 9; i++) digits.add(i);
         Collections.shuffle(digits);
-        // Take the first 4 digits from the shuffled list
         StringBuilder secretNumber = new StringBuilder();
-        for (int i = 0; i < 4; i++) {
-            secretNumber.append(digits.get(i));
-        }
+        for (int i = 0; i < 4; i++) secretNumber.append(digits.get(i));
         return secretNumber.toString();
     }
 
-    /**
-     * Compares the user's guess with the secret number and calculates M and P
-     * @param secret The 4-digit secret number
-     * @param guess The 4-digit user guess
-     * @return A GuessResult object containing the counts for M and P
-     */
     public GuessResult checkGuess(String secret, String guess) {
-        int p = 0; // Correct position
-        int m = 0; // Correct digit, wrong position
+        int p = 0;
+        int m = 0;
         int[] secretDigitCounts = new int[10];
         int[] guessDigitCounts = new int[10];
 
-        // First, counts all digits that are in the correct position (P)
-        // and also count the frequency of all non-P digits
         for (int i = 0; i < 4; i++) {
             char secretChar = secret.charAt(i);
             char guessChar = guess.charAt(i);
             if (secretChar == guessChar) {
                 p++;
             } else {
-                // Convert char to int ('0' is 48, '1' is 49, etc.)
                 secretDigitCounts[secretChar - '0']++;
                 guessDigitCounts[guessChar - '0']++;
             }
         }
-
-        // Find the number of common digits between the remaining ones (M)
         for (int i = 0; i < 10; i++) {
-            // M is the minimum of the counts for each digit
             m += Math.min(secretDigitCounts[i], guessDigitCounts[i]);
         }
-
         return new GuessResult(m, p);
     }
 
-    // Method to update player stats after a game
+    /**
+     * Creates a new GUEST PlayerStatsEntity. Deletes any existing GUEST records
+     * with the same name first so there are no duplicates on the leaderboard.
+     */
     @Transactional
-    public void recordGameResult(String playerName, boolean won, int guessesMade, String secretNumber) {
-        // Check if the player is a guest by looking for the "GUEST:" prefix
-        boolean isGuest = playerName.startsWith("GUEST:");
-
-        // Save game history for all players, including guests
-        GameHistoryEntity gameHistory = new GameHistoryEntity(
-                playerName,
-                secretNumber,
-                won,
-                guessesMade,
-                LocalDateTime.now()
-        );
-        gameHistoryRepository.save(gameHistory);
-
-        // Only update player stats for non-guest players
-        if (!isGuest) {
-            Optional<PlayerStatsEntity> playerStatsOpt = playerStatsRepository.findById(playerName);
-            PlayerStatsEntity playerStats;
-
-            if (playerStatsOpt.isPresent()) {
-                playerStats = playerStatsOpt.get();
-                playerStats.setGamesPlayed(playerStats.getGamesPlayed() + 1);
-                playerStats.setTotalGuesses(playerStats.getTotalGuesses() + guessesMade);
-                if (won) {
-                    playerStats.setWins(playerStats.getWins() + 1);
-                }
-            } else {
-                playerStats = new PlayerStatsEntity(
-                        playerName,
-                        1, // gamesPlayed
-                        guessesMade,
-                        won ? 1 : 0 // wins
-                );
-            }
-            playerStatsRepository.save(playerStats);
-        }
+    public PlayerStatsEntity createGuestPlayer(String name) {
+        playerStatsRepository.findAllByPlayerNameAndPlayerType(name, "GUEST")
+                .forEach(this::deleteGuestPlayer);
+        PlayerStatsEntity entity = new PlayerStatsEntity(name, "GUEST", null, 0, 0, 0);
+        return playerStatsRepository.save(entity);
     }
 
-    // Method to get the sorted leaderboard with minimum games filter
+    /**
+     * Looks up a player by ID. Used by the restart flow.
+     */
+    public Optional<PlayerStatsEntity> getPlayerById(Long id) {
+        return playerStatsRepository.findById(id);
+    }
+
+    /**
+     * Returns true if at least one GUEST record already has this name.
+     */
+    public boolean guestNameExists(String name) {
+        return !playerStatsRepository.findAllByPlayerNameAndPlayerType(name, "GUEST").isEmpty();
+    }
+
+    /**
+     * Returns true if an OAUTH2 player already owns this name.
+     * Used to block guests from registering a name claimed by a Google account.
+     */
+    public boolean oauth2NameExists(String name) {
+        return playerStatsRepository.findByPlayerNameAndPlayerType(name, "OAUTH2").isPresent();
+    }
+
+    /**
+     * Finds an existing OAuth2 player by email, or creates a new one.
+     * The display name is set separately via assignNameToOAuth2Player.
+     */
+    @Transactional
+    public PlayerStatsEntity findOrCreateOAuth2Player(String email) {
+        return playerStatsRepository.findByEmail(email)
+                .orElseGet(() -> playerStatsRepository.save(
+                        new PlayerStatsEntity(email, "OAUTH2", email, 0, 0, 0)));
+    }
+
+    /**
+     * Checks if a name is already taken by another OAUTH2 player (not the one with the given email).
+     */
+    public Optional<PlayerStatsEntity> findOAuth2Conflict(String name, String currentEmail) {
+        return playerStatsRepository.findByPlayerNameAndPlayerType(name, "OAUTH2")
+                .filter(p -> !currentEmail.equals(p.getEmail()));
+    }
+
+    /**
+     * Deletes a guest player and all their game history.
+     */
+    @Transactional
+    public void deleteGuestPlayer(PlayerStatsEntity guest) {
+        gameHistoryRepository.deleteByPlayerStatsId(guest.getId());
+        playerStatsRepository.delete(guest);
+    }
+
+    /**
+     * Assigns a display name to an OAuth2 player and saves.
+     */
+    @Transactional
+    public PlayerStatsEntity assignNameToOAuth2Player(PlayerStatsEntity player, String name) {
+        player.setPlayerName(name);
+        return playerStatsRepository.save(player);
+    }
+
+    /**
+     * If any GUEST players own the given name, deletes them and their history.
+     * Called when an OAuth2 user claims a name, giving them priority.
+     */
+    @Transactional
+    public void resolveGuestConflict(String name) {
+        playerStatsRepository.findAllByPlayerNameAndPlayerType(name, "GUEST")
+                .forEach(this::deleteGuestPlayer);
+    }
+
+    /**
+     * Records a completed game result. Updates both GameHistory and PlayerStats.
+     */
+    @Transactional
+    public void recordGameResult(Long playerStatsId, String playerName, boolean won,
+                                 int guessesMade, String secretNumber) {
+        GameHistoryEntity history = new GameHistoryEntity(
+                playerStatsId, playerName, secretNumber, won, guessesMade, LocalDateTime.now());
+        gameHistoryRepository.save(history);
+
+        playerStatsRepository.findById(playerStatsId).ifPresent(player -> {
+            player.setGamesPlayed(player.getGamesPlayed() + 1);
+            player.setTotalGuesses(player.getTotalGuesses() + guessesMade);
+            if (won) player.setWins(player.getWins() + 1);
+            playerStatsRepository.save(player);
+        });
+    }
+
     public List<PlayerStats> getLeaderboard(int minGames) {
-        List<PlayerStatsEntity> playerStatsEntities = playerStatsRepository.findAll();
-        // Convert to domain model and filter
-        List<PlayerStats> playerStatsList = playerStatsEntities.stream()
+        List<PlayerStats> list = playerStatsRepository.findAll().stream()
                 .map(PlayerStatsEntity::toDomainModel)
-                .filter(player -> player.gamesPlayed() >= minGames)
+                .filter(p -> p.gamesPlayed() >= minGames)
                 .collect(Collectors.toList());
-        // Sort the list using the logic defined in the PlayerStats record
-        Collections.sort(playerStatsList);
-        return playerStatsList;
+        Collections.sort(list);
+        return list;
     }
 
-    // Keep the original method for backward compatibility
     public List<PlayerStats> getLeaderboard() {
-        return getLeaderboard(1); // Default minimum games is 1
+        return getLeaderboard(1);
     }
 
-    // Method to get game history for a player
-    public List<GameHistoryEntity> getPlayerGameHistory(String playerName) {
-        return gameHistoryRepository.findByPlayerName(playerName);
+    public List<GameHistoryEntity> getPlayerGameHistory(Long playerStatsId) {
+        return gameHistoryRepository.findByPlayerStatsId(playerStatsId);
     }
 }

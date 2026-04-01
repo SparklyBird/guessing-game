@@ -41,7 +41,7 @@ class LeaderboardControllerIntegrationTest {
 
     @Test
     void getLeaderboard_withMinGamesParam_passesFilterToService() throws Exception {
-        PlayerStats alice = new PlayerStats("Alice", 3, 18, 2);
+        PlayerStats alice = new PlayerStats("Alice", "OAUTH2", 3, 18, 2);
         when(gameService.getLeaderboard(3)).thenReturn(List.of(alice));
 
         mockMvc.perform(get("/leaderboard").param("minGames", "3"))
@@ -54,8 +54,8 @@ class LeaderboardControllerIntegrationTest {
     @Test
     void getLeaderboard_withPopulatedData_exposesPlayersInModel() throws Exception {
         List<PlayerStats> players = List.of(
-                new PlayerStats("Bob", 5, 25, 4),
-                new PlayerStats("Alice", 3, 18, 2)
+                new PlayerStats("Bob", "OAUTH2", 5, 25, 4),
+                new PlayerStats("Alice", "GUEST", 3, 18, 2)
         );
         when(gameService.getLeaderboard(1)).thenReturn(players);
 
@@ -67,8 +67,6 @@ class LeaderboardControllerIntegrationTest {
     @Test
     @WithMockUser
     void getLeaderboard_withNonOAuth2User_doesNotAddUserAttribute() throws Exception {
-        // @WithMockUser provides a UserDetails-based principal, not an OAuth2User.
-        // The controller's principal == null guard means no "user" attribute is set.
         when(gameService.getLeaderboard(1)).thenReturn(List.of());
 
         mockMvc.perform(get("/leaderboard"))

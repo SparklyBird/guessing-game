@@ -8,12 +8,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 import java.util.List;
 import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class GameServiceTest {
@@ -31,29 +32,28 @@ public class GameServiceTest {
     public void testGenerateSecretNumber() {
         String secretNumber = gameService.generateSecretNumber();
         assertEquals(4, secretNumber.length());
-        // Check all digits are unique
         assertEquals(4, secretNumber.chars().distinct().count());
     }
 
     @Test
     public void testCheckGuess() {
-        // Test case 1: No matches
+        // No matches
         GameService.GuessResult result1 = gameService.checkGuess("1234", "5678");
         assertEquals(0, result1.m());
         assertEquals(0, result1.p());
-        // Test case 2: One digit in correct position
+        // One digit correct position
         GameService.GuessResult result2 = gameService.checkGuess("1234", "1567");
         assertEquals(0, result2.m());
         assertEquals(1, result2.p());
-        // Test case 3: One digit in wrong position
+        // One digit wrong position
         GameService.GuessResult result3 = gameService.checkGuess("1234", "5123");
         assertEquals(3, result3.m());
         assertEquals(0, result3.p());
-        // Test case 4: Two digits in correct position, one in wrong
+        // Two correct position, one wrong
         GameService.GuessResult result4 = gameService.checkGuess("1234", "1243");
         assertEquals(2, result4.m());
         assertEquals(2, result4.p());
-        // Test case 5: All correct
+        // All correct
         GameService.GuessResult result5 = gameService.checkGuess("1234", "1234");
         assertEquals(0, result5.m());
         assertEquals(4, result5.p());
@@ -61,56 +61,65 @@ public class GameServiceTest {
 
     @Test
     public void testRecordGameResult() {
-        // Test recording a new player's win
-        when(playerStatsRepository.findById("Alice")).thenReturn(Optional.empty());
-        when(playerStatsRepository.save(any(PlayerStatsEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        gameService.recordGameResult("Alice", true, 3, "1234");
-        // Verify that the repositories were called
+        // Setup: player exists with id=1L
+        PlayerStatsEntity existingPlayer = new PlayerStatsEntity("Alice", "OAUTH2", "alice@example.com", 2, 10, 1);
+        existingPlayer.setId(1L);
+        when(playerStatsRepository.findById(1L)).thenReturn(Optional.of(existingPlayer));
+        when(playerStatsRepository.save(any(PlayerStatsEntity.class))).thenAnswer(i -> i.getArgument(0));
+
+        gameService.recordGameResult(1L, "Alice", true, 3, "1234");
+
         verify(gameHistoryRepository, times(1)).save(any());
         verify(playerStatsRepository, times(1)).save(any());
-        // Reset mocks for the next test
+
+        // Verify stats were updated
+        assertEquals(3, existingPlayer.getGamesPlayed());
+        assertEquals(13, existingPlayer.getTotalGuesses());
+        assertEquals(2, existingPlayer.getWins());
+
         reset(playerStatsRepository, gameHistoryRepository);
-        // Test recording an existing player's loss
-        PlayerStatsEntity existingPlayer = new PlayerStatsEntity("Bob", 2, 10, 1);
-        when(playerStatsRepository.findById("Bob")).thenReturn(Optional.of(existingPlayer));
-        when(playerStatsRepository.save(any(PlayerStatsEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        gameService.recordGameResult("Bob", false, 8, "5678");
-        // Verify that the repositories were called again
+
+        // Player not found: stats update is skipped but history is saved
+        when(playerStatsRepository.findById(99L)).thenReturn(Optional.empty());
+        gameService.recordGameResult(99L, "Ghost", false, 8, "5678");
         verify(gameHistoryRepository, times(1)).save(any());
-        verify(playerStatsRepository, times(1)).save(any());
+        verify(playerStatsRepository, never()).save(any());
     }
 
     @Test
     public void testLeaderboard() {
-        // Create mock player stats
-        PlayerStatsEntity alice = new PlayerStatsEntity("Alice", 2, 11, 1);
-        PlayerStatsEntity bob = new PlayerStatsEntity("Bob", 2, 9, 2);
-        PlayerStatsEntity charlie = new PlayerStatsEntity("Charlie", 2, 10, 1);
-        // Mock repository to return these stats
+        PlayerStatsEntity alice = new PlayerStatsEntity("Alice", "OAUTH2", null, 2, 11, 1);
+        PlayerStatsEntity bob = new PlayerStatsEntity("Bob", "OAUTH2", null, 2, 9, 2);
+        PlayerStatsEntity charlie = new PlayerStatsEntity("Charlie", "OAUTH2", null, 2, 10, 1);
         when(playerStatsRepository.findAll()).thenReturn(List.of(alice, bob, charlie));
+
         var leaderboard = gameService.getLeaderboard();
-        // Check the leaderboard is sorted correctly
-        // Bob: 2 wins, 0 losses (100% success rate), 9 total guesses
-        // Charlie: 1 win, 1 loss (50% success rate), 10 total guesses
-        // Alice: 1 win, 1 loss (50% success rate), 11 total guesses
         assertEquals("Bob", leaderboard.get(0).playerName());
-        // Charlie and Alice both have 50% success rate, but Charlie has fewer total guesses
         assertEquals("Charlie", leaderboard.get(1).playerName());
         assertEquals("Alice", leaderboard.get(2).playerName());
     }
 
     @Test
     public void testLeaderboardWithMinGamesFilter() {
-        // Create mock player stats
-        PlayerStatsEntity alice = new PlayerStatsEntity("Alice", 2, 11, 1);
-        PlayerStatsEntity bob = new PlayerStatsEntity("Bob", 2, 9, 2);
-        PlayerStatsEntity charlie = new PlayerStatsEntity("Charlie", 1, 2, 1);
-        // Mock repository to return these stats
+        PlayerStatsEntity alice = new PlayerStatsEntity("Alice", "OAUTH2", null, 2, 11, 1);
+        PlayerStatsEntity bob = new PlayerStatsEntity("Bob", "OAUTH2", null, 2, 9, 2);
+        PlayerStatsEntity charlie = new PlayerStatsEntity("Charlie", "GUEST", null, 1, 2, 1);
         when(playerStatsRepository.findAll()).thenReturn(List.of(alice, bob, charlie));
+
         var leaderboard = gameService.getLeaderboard(2);
-        // Only Alice and Bob should be in the leaderboard (min 2 games)
         assertEquals(2, leaderboard.size());
-        assertEquals("Bob", leaderboard.get(0).playerName());  // Bob has 100% success rate
-        assertEquals("Alice", leaderboard.get(1).playerName()); // Alice has 50% success rate
+        assertEquals("Bob", leaderboard.get(0).playerName());
+        assertEquals("Alice", leaderboard.get(1).playerName());
+    }
+
+    @Test
+    public void testOAuth2RanksAboveGuestWithEqualStats() {
+        PlayerStatsEntity oauthPlayer = new PlayerStatsEntity("OAuth2User", "OAUTH2", "u@x.com", 2, 10, 1);
+        PlayerStatsEntity guestPlayer = new PlayerStatsEntity("GuestUser", "GUEST", null, 2, 10, 1);
+        when(playerStatsRepository.findAll()).thenReturn(List.of(guestPlayer, oauthPlayer));
+
+        var leaderboard = gameService.getLeaderboard();
+        assertEquals("OAuth2User", leaderboard.get(0).playerName());
+        assertEquals("GuestUser", leaderboard.get(1).playerName());
     }
 }
